@@ -1,15 +1,15 @@
 import pytest
 from ethereum.tools.tester import TransactionFailed
-from plasma_core.constants import NULL_ADDRESS_HEX, WEEK
+from plasma_core.constants import NULL_ADDRESS, NULL_ADDRESS_HEX, WEEK
 
 
 def test_challenge_standard_exit_valid_spend_should_succeed(testlang):
     owner, amount = testlang.accounts[0], 100
     deposit_id = testlang.deposit(owner, amount)
-    spend_id = testlang.spend_utxo(deposit_id, owner, amount, owner)
+    spend_id = testlang.spend_utxo([deposit_id], [owner.key], outputs=[(owner.address, NULL_ADDRESS, amount)])
 
-    testlang.start_standard_exit(owner, spend_id)
-    doublespend_id = testlang.spend_utxo(spend_id, owner, amount, owner)
+    testlang.start_standard_exit(spend_id, owner.key)
+    doublespend_id = testlang.spend_utxo([spend_id], [owner.key], outputs=[(owner.address, NULL_ADDRESS, amount)])
 
     testlang.challenge_standard_exit(spend_id, doublespend_id)
 
@@ -19,10 +19,10 @@ def test_challenge_standard_exit_valid_spend_should_succeed(testlang):
 def test_challenge_standard_exit_mature_valid_spend_should_succeed(testlang):
     owner, amount = testlang.accounts[0], 100
     deposit_id = testlang.deposit(owner, amount)
-    spend_id = testlang.spend_utxo(deposit_id, owner, amount, owner)
+    spend_id = testlang.spend_utxo([deposit_id], [owner.key], outputs=[(owner.address, NULL_ADDRESS, amount)])
 
-    testlang.start_standard_exit(owner, spend_id)
-    doublespend_id = testlang.spend_utxo(spend_id, owner, amount, owner)
+    testlang.start_standard_exit(spend_id, owner.key)
+    doublespend_id = testlang.spend_utxo([spend_id], [owner.key], outputs=[(owner, NULL_ADDRESS, amount)])
 
     testlang.forward_timestamp(2 * WEEK + 1)
 
@@ -65,17 +65,17 @@ def test_challenge_standard_exit_not_started_should_fail(testlang):
 def test_restarting_challenged_exit_should_fail(testlang):
     owner, amount = testlang.accounts[0], 100
     deposit_id = testlang.deposit(owner, amount)
-    spend_id = testlang.spend_utxo(deposit_id, owner, 100, owner)
+    spend_id = testlang.spend_utxo([deposit_id], [owner.key], outputs=[(owner.address, NULL_ADDRESS, amount)])
 
-    testlang.start_standard_exit(owner, spend_id)
-    doublespend_id = testlang.spend_utxo(spend_id, owner, 100, owner)
+    testlang.start_standard_exit(spend_id, owner.key)
+    doublespend_id = testlang.spend_utxo([deposit_id], [owner.key], outputs=[(owner.address, NULL_ADDRESS, amount)])
 
     testlang.challenge_standard_exit(spend_id, doublespend_id)
 
     assert testlang.root_chain.exits(spend_id) == [NULL_ADDRESS_HEX, NULL_ADDRESS_HEX, 100]
 
     with pytest.raises(TransactionFailed):
-        testlang.start_standard_exit(owner, spend_id)
+        testlang.start_standard_exit(spend_id, owner.key)
 
 
 def test_challenge_standard_exit_wrong_oindex_should_fail(testlang):
@@ -97,7 +97,7 @@ def test_challenge_standard_exit_wrong_oindex_should_fail(testlang):
     alice_utxo = encode_utxo_id(blknum, 0, 0)
     bob_utxo = encode_utxo_id(blknum, 0, 1)
 
-    testlang.start_standard_exit(alice, alice_utxo)
+    testlang.start_standard_exit(alice_utxo, alice.key)
 
     bob_spend_id = testlang.spend_utxo(bob_utxo, bob, bob_money, bob)
     alice_spend_id = testlang.spend_utxo(alice_utxo, alice, alice_money, alice)
